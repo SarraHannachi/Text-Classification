@@ -1,0 +1,325 @@
+---
+title: "Question Classification"
+author: "Sarra Hannachi"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Section 1: Data Description 
+>
+
+## Importing Data:  
+
+Let us import and adjust our data:
+
+```{r}
+data<-read.csv('Question_Classification_Dataset.csv')
+```
+
+## Introducing Data:  
+>
+>The dataset of this project contains questions and their respective categories, category keys and sub-categories. It consists of a dataframe that is structured as follows: 5 columns including index "X", questions, categories, category keys, subcategories, and 5452 rows representing the unique questions collected in text data format. The data has been collected in 2002 by Xin Li and Dan Roth and supported by National Science Foundation (NSF) grants and Multidisciplinary University Research Initiatives (MURI) Award.  
+
+```{r}
+data$Category0 <- as.factor(data$Category0)
+data$Category1 <- as.factor(data$Category1)
+data$Category2 <- as.factor(data$Category2)
+str(data)
+```
+
+# Section 2: Problem  
+>
+>The purpose of this project is to classify the questions given in the text data into their categories or sub-categories based on the type of the answer to the given questions. So, this is a multi-class text classification problem. Mapping questions into 3 or more classes necessitates the use of specific words and therefore applying a machine learning algorithm is required to categorize each question into one class for the respective answer type taxonomy.
+
+# Section 3: Technical Information  
+
+The packages I will be using are the following
+```{r, results='hide'}
+library(naniar)
+```
+This package helps in structuring and detecting the missing values in data and find the proportion of missing data per each attribute. We need it to select and omit those values because they could affect our analysis badly and tamper with the results.
+
+```{r, results='hide'}
+library(tm)
+library(textstem)
+```
+This package provides a text mining framework where many methods & functions are presents for text data import, corpus handling, pre-processing, metadata management and creating or operating on document-term matrices. The tm package is needed in our case because it is crucial for the cleaning and pre-processing phase prior to any machine learning applications.
+
+```{r, results='hide'}
+library(wordcloud)
+```
+The wordcloud package helps us visualize a group of words according to a precise frequency criteria in the corpus. It is important as it consists of a summary of some information that we could be looking for in a document-term matrix and its functionality resides in visualizing differences and similarity between documents, and avoid over-plotting in scatter plots with text.
+
+```{r, results='hide'}
+library(lessR)
+```
+This package is used for data visualization, specifically for pie chart creations which we will implement in the exploratory data analysis phase. The pie chart is a suitable data visualization tool for percentage frequency distributions of categorical features.
+
+```{r, results='hide'}
+library(RColorBrewer)
+```
+This package consists on a set of color palettes applicable in numerous visualization functions in R. The palettes are useful for data visualization and comparison and more meaningful than standard colors. It is much easier to interpret this package's color labels than normal R built-in color codes.
+
+```{r, results='hide'}
+library(e1071)
+```
+We need this package to apply the Naive Bayes function in order to build our Naives Bayes Classifier model for the purpose of the project: Text classification.
+```{r, results='hide'}
+library(gmodels)
+```
+Package for Crosstable function
+
+```{r, results='hide'}
+library(randomForest)
+```
+This package
+
+```{r, results='hide'}
+library(caret)
+```
+Ths pakcage is used for creating the confusion matrix of our model and 
+
+
+# Section 4: Text Data Analysis  
+
+## I. Data Cleaning & Preprocessing  
+
+### Missing values:  
+
+First, we need to visualize our missing values because we are dealing with a moderately large dataset.
+```{r}
+gg_miss_var(data)
+```
+
+Clearly, there is no missing data in any of the variables of our dataset. So, there is no need to omit any observations from our dataset.  
+Moving on to the pre-processing step of our text data which is crucial before applying any machine learning model.  
+
+### Creating Corpus:
+
+```{r}
+data_corpus <- Corpus(VectorSource(data$Questions))
+print(data_corpus)
+```
+I created a corpus which is a structured set of text data relevant for our analysis/classification purposes. We can examine the first 3 text documents in the corpus:  
+
+```{r}
+inspect(data_corpus[1:5])
+```
+We can observe the existence of capitalized letters, non-alphabetical characters and punctuation in more than one of the text documents inspected. The next required step is cleaning the corpus:  
+
+### Cleaning Corpus:
+
+```{r}
+#Making all text lowercase for standardization purposes
+clean_corpus <- tm_map(data_corpus, tolower)
+```
+* **"tolower"** function makes all he characters in a string lowercase. This is helpful for term aggregation.
+
+```{r}
+#Removing punctuation such periods, exclamation and interrogation marks
+clean_corpus <- tm_map(clean_corpus, removePunctuation)
+```
+* **"removePunctuation"** function which removes all types of punctuation. It is not harmful for our text data because our data essentially consists on interrogative sentences in English and does not include any punctuation-dependent text such as social media data for example.
+
+```{r}
+#Removing numbers from text data
+clean_corpus <- tm_map(clean_corpus, removeNumbers)
+```
+* **"removeNumbers"** function removes all numbers inside the string text which is helpful in text analysis since we are not text mining quantities.
+
+```{r}
+#Removing excessive white spaces
+clean_corpus <- tm_map(clean_corpus, stripWhitespace)
+```
+* **"stripWhiteSpace"** function removes extra space between words or extra lines which are not relevant for or included in our text analysis. 
+
+```{r}
+#Removing stopwords
+clean_corpus <- tm_map(clean_corpus, removeWords, stopwords("english"))
+```
+
+* **"removeWords"** function removes stopwords in a specified language such as in English "the" , "is" ,"are", "on", etc. Stopwords are eliminated or excluded from given texts for performing tasks like text classification such as our problem, where the text is to be categorized into distinct groups , so that more focus can be allocated to the fewer and only tokens left that determine the text's meaning. Therefore, it could enhance classification accuracy.
+
+```{r}
+#Stemming words
+clean_corpus <- tm_map(clean_corpus,stemDocument)
+```
+* **"stemDocument"** is used for Stemming which is the process of reducing a word to its word stem that converts affixes to suffixes and prefixes or to the roots of words also known as a lemma. It helps us obtain the root forms of derived words and use them in our text analysis.
+
+```{r}
+#Lemmatization of question strings
+clean_corpus <- tm_map(clean_corpus, lemmatize_strings)
+```
+* **"lemmatize_strings"** is
+
+
+```{r}
+#Comparison: before VS after cleaning corpus
+data[2,2]
+writeLines(as.character(clean_corpus[[2]]))
+```
+After following the previous text data cleansing steps, we obtained the questions of our dataset in clean text format ready for analysis and processing, where each instance of "*clean_corpus*" contains cleansed, and tokenized words for a sentence. In order to understand our data better, visualize it and inspect the words frequency in each question of our dataset, we will go through **Exploratory Analysis** first.
+
+>
+
+## II. Exploratory Analysis  
+
+### Data Visualization
+
+* Univariate Analysis of Categories
+
+```{r}
+#To visualize our data by category, we will make a frequency distribution piechart of "Category0":
+Category <- as.vector(data$Category0)
+PieChart(Category, hole = 0, values = "%", data = data,
+         fill =brewer.pal(6,"Spectral"), main = "Question-Answer Category Frequency Distribution")
+```
+  
+From the pie chart, we can conclude that the most frequent types of the questions' answers with frequency percentages **23%**, **22%** and **21%** are respectively: **ENTITY** which usually answer questions about objects or nouns such as "*what"* and "*which*", **HUMAN** which usually give information about a person or an identity such as "*who*" questions and **DESCRIPTION** which often occurs in "*how*" or "*why*" questions where an elaborated description or explanation is required to answer the question. Meanwhile **ABBREVIATION** remains the least frequent question category with only a **2%** portion among the 5452 questions in our dataset. The remaining categories **NUMERIC** and **LOCATION** both respectively represent **16%** and **15%** of the data.
+
+
+* Question Length Distribution (before cleaning & pre-processing)
+
+```{r}
+#First, I will add a column in our dataframe representing the questions" respective lengths:
+data$len <- nchar(data$Questions)
+head(data)
+#Now, I will visualize the length distribution of the set of questions in the data by Category:
+boxplot(len~Category1,data=data,main="Question Length Boxplots by Question Category\n",
+xlab="Question Category",ylab="Question Length",col="orange",border="brown")
+```
+   
+Regardless of the outlier observations in the plot, we can see that the categories **ENTITY** and **HUMAN** are relatively the types of question with the longest lengths where the maximum number of characters, is either equal to or surpasses *100* and only about half of the questions have lengths lower than 50 characters. It is significantly meaningful to find these 2 categories at the top of the boxplots because for identification purposes, when seeking *entity name* or *human information*, we usually need to provide a thoroughly detailed description and/or definition of what exactly we are looking for or want to **identify**.  
+While the most relatively short questions belong to the categories **ABBREVIATION** and **DESCRIPTION** where 75% of the questions contain 50 or less characters. This could be explained by the existence of *short-termed abbreviations* (for example: "**.com**) or specified *objects/nouns* which are limited in terms of number of characters but require a longer and more elaborated answer with the use of more characters for description.  
+As for the categories **LOCATION** and **NUMERIC**, half of the questions contain less than 40 characters each which means they are usually short questions which is logical because this type of questions does not require much elaboration other than the use of words such as "*where*", "*when*" or "*how many*".  
+
+* Creation of WordCloud (after cleaning & pre-processing)
+
+```{r}
+#We will visualize the most frequent words in our text corpus by creating a wordcloud as follows:
+wordcloud(clean_corpus, scale=c(6,0.4), min.freq = 10, max.words=100, random.order=FALSE, rot.per=0.25, use.r.layout=FALSE, colors=brewer.pal(8, "Paired"))
+```
+I extracted a word cloud of 100 words with a minimum frequency = 10 from our cleansed text data in "**clean_corpus**" to visualize the most repeated words in the questions while excluding all stopwords in the text data pre-processing phase.
+- Obviously the most frequent word is "**name**" which makes sense because most questions inquiring about a *name* of a *person* or *name* of a *location* or *name* of an *entity* usually include the word **name**.   
+- The 2nd most frequent word is "**mani**" which is the post-latenization version of the original word "**many**" that is almost always used in questions that required a *numeric* type of an answer.   
+- The 3rd most frequent word is "**first**" because it is often used in questions with superlative formats such as particular "*HUMAN*", "*ENTITY*", "*LOCATION*" or "*NUMERIC*" sub-categories.  
+- The rest of the 2nd level frequent words in the corpus are mainly "**world**", **countri**", "**can**", "**citi**", "**state**", "**call**" and **year**". We can find their original unstemmed versions in any of the 6 question types we have.
+
+* Document-Term Matrix
+
+From the **{tm}** package, I will use the **DocumentTermMatrix()** function on the *clean_corpus* as input in order to output what we call a *sparse matrix* where the rows are documents that represent the questions in our case and the columns are terms which represent the words used in them. The matrix cells have numerical values representing the **wordcount** of each term in each document. This matrix will facilitate any further analysis or machine learning approach on our text data.
+
+```{r}
+#DTM
+question_dtm <- DocumentTermMatrix(clean_corpus)
+inspect(question_dtm[1:5,1:10])
+#Remove sparsity:
+question_dtm <- removeSparseTerms(question_dtm,0.96)
+question_dtm
+```
+For instance, in the first 5 documents, we can see the frequency of the first 10 terms in each question which in this limited observation example only shows binary results.  
+
+```{r}
+#Searching for terms with predetermined frequency:
+findFreqTerms(question_dtm, 25)
+```
+The list of terms displayed above are all the words that possess an overall *frequency = 25* in the entire corpus. Among these *132 terms*, we must evidently find the *top frequent words* ("name" & "mani") which we already visualized with the *wordcloud*.
+
+## III. Questions Type Classification  
+
+### Naïve Bayes
+
+I will be applying a Naïve Bayes Classifier in order to achieve the **multi-class classification of the questions** in the corpus.
+(add why Naive bayes?)
+
+* Creating Training & Test datasets
+
+```{r}
+#converting DTM to DF and attaching names
+dtm_f <- as.data.frame(as.matrix(question_dtm))
+colnames(dtm_f) <- make.names(colnames(dtm_f))
+dtm_f$category0 <- data$Category0
+
+#Creating Train & Test sets from Document-Term Matrix:
+set.seed(100)
+dim(dtm_f)
+ind <- sample (2,nrow(dtm_f),replace=T, prob = c(0.7,0.3))
+train.dtm <- dtm_f[ind == 1,]
+test.dtm <- dtm_f[ind == 2,]
+dim(train.dtm)
+dim(test.dtm)
+
+#Setting Class labels
+set.seed(100)
+train.dtm$category0 <- as.factor(train.dtm$category0)
+test.dtm$category0 <- as.factor(test.dtm$category0)
+levels(test.dtm$category0)
+train.class <- train.dtm$category0
+test.class <- test.dtm$category0
+```
+
+* Training Naïve Bayes Classifier Model
+
+We train the training set of the Document-Term Matrix we formulated from the clean corpus, against the class Category0 from the training set of the raw data as follows:
+
+```{r}
+model <- naiveBayes(train.dtm,train.class)
+```
+
+* Making the class predictions
+
+```{r}
+results <- predict(model,test.dtm,type="class")
+```
+
+* Evaluating model performance
+
+```{r}
+#creation predicted/actual crosstable:
+CrossTable(results, test.class,prop.chisq = FALSE, prop.t = FALSE,dnn = c('predicted', 'actual'))
+#creating confusion matrix:
+confusionMatrix(results,test.class)
+#model looks overfitted
+```
+
+* Doing 10-fold cross-validation to limit overfitting
+
+```{r}
+#K-fold cross-validation
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+#Training
+kfold_model <- naiveBayes(train.dtm,train.class, trControl = control)
+#Predicting
+kfold_results <- predict(kfold_model,test.dtm,type="class")
+#Confusion Matrix
+confusionMatrix(kfold_results,test.class)
+#Model still looks overfitted.
+```
+=> We need to opt for a different classification algorithm that is much less sensible to overfitting.
+
+### RANDOM FOREST 
+
+* Building Random Forest Model
+
+```{r}
+#Training
+RF_model <- randomForest(train.class ~ ., data=train.dtm)
+#Predicting
+predictions <- predict(RF_model, newdata=test.dtm)
+```
+
+* Evaluating Model Performance
+
+```{r}
+table(test.class, predictions)
+confusionMatrix(predictions,test.class)
+```
+
+
+Section 5: Conclusion
+
+*  
+
